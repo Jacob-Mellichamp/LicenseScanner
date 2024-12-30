@@ -5,29 +5,25 @@ use warnings;
 use File::Find;
 use File::Copy;
 use File::Spec;
-use Cwd 'abs_path';
+use Cwd qw (abs_path getcwd);
 use JSON;
 use Exporter 'import';
 use File::Path qw(rmtree);
 
-our @EXPORT_OK = qw(initialize_dependency_list print_distributions install_tar_gz);
+our @EXPORT_OK = qw(initialize_dependency_list print_distributions install_tar_gz work);
 
 
-our $VERSION = 1.0;
-our $tmp_dir = 'tmp';
-our @tar_files; # list of tar file absolute paths.
 
 ################################ Global - Variables #####################################
-
-# Directory where Licenses will be installed
-my $directory = "";
-
-my $core_cpanfile    = "";
-my $restapi_cpanfile = "";
-my %cpanfile_deps;    # from cpanfile reads
-my %license_results;
+our $VERSION = 1.0;
+our $directory = getcwd();
+our $tmp_dir = "$directory/tmp";
+our $lic_dir = "$directory/licenses";
+our @tar_files; # list of tar file absolute paths.
+our %cpanfile_deps;    # from cpanfile reads formatted Test::Harness@0.05
+our %cpanfile_formatted; # formatted Test-Harness-0.05
+our %license_results;
 my @errors;
-
 ##########################################################################################
 sub install_tar_gz {
 	clean_up();
@@ -38,7 +34,7 @@ sub install_tar_gz {
 			exit 1;
 		}
 	}
-	find( \&find_tar_gz, $directory );
+	find( \&find_tar_gz, $tmp_dir );
 }
 # Get all tar.gz files
 # Purpose: This file finds All files that end in .tar.gz within the 'lk_com/cpan/windows' directory.
@@ -105,6 +101,7 @@ sub read_cpan_file {
 			$cpanfile_deps{"$1"} = "N/A";
 		}
 	}
+	format_cpanfile_entries(); 
 	print STDERR "[INFO]:\t Reading $file_path cpanfile. . . success!\n";
 }
 
@@ -120,8 +117,18 @@ sub initialize_dependency_list {
 sub unpack_tarfile {
 	my ( $tarfile, $dir ) = @_;
 	print STDERR "[INFO]:\t untar: $tarfile\n";
-	my $cmd = "tar --force-local -xvzf $tarfile -C $dir >nul 2>nul";
+	my $cmd = "tar -xvzf $tarfile -C $dir >nul 2>nul";
+	print STDERR "$cmd\n";
 	return system($cmd);
+}
+
+sub format_cpanfile_entries {
+	foreach my $distro (keys %cpanfile_deps){
+		my $tmp = $distro;
+		$tmp =~ s/::/-/g;   # Replace "::" with "-"
+		$tmp =~ s/@/-/;     # Replace "@" with "-"
+		$cpanfile_formatted{$tmp} = "N/A";
+	}
 }
 
 # Purpose: Given a META.json CPAN metadata file ... search for what license is used.
@@ -173,4 +180,159 @@ sub clean_up {
 		print STDERR "[ERROR]: Directory $tmp_dir does not exist.\n";
 	}
 }
+
+sub extract_readme {
+	my ($file, $dest) = @_;
+	open(my $fh, '<', $file) or die "Could not open file '$file': $!"; # Open the README file
+
+	my $extracting = 0;
+	my $extracted_lines = 0;
+	my $max_lines_extracted = 5;
+	my @section;
+
+	while (my $line = <$fh>) {
+		chomp $line;
+
+		# Detect the start of the "Copyright & License" section
+		if ($line =~ /^(Copyright|COPYRIGHT|copyright|LICENSE)/i) {
+			$extracting = 1;
+			push @section, $line;
+			next;
+		}
+
+		# Detect the end of the section (e.g., blank line or next heading)
+		if ($extracting && $line =~ /^\s*$/) {
+			$extracting = 0;
+			next;
+		}
+
+		# # Detech up to 2 blank lines or 5 lines total.
+		# if($extracting > 2 || $max_lines_extracted == $extracted_lines) {
+		# 	$extracting = 0;
+		# 	last;
+		# }
+
+		# Add lines to the section if within the desired block
+		push @section, $line if $extracting;
+		$extracted_lines += 1 if $extracting;
+	}
+
+	close $fh;
+
+	# Print the extracted section
+	if (@section) {
+		print "Extracted 'Copyright & License' section:\n";
+		print join("\n", @section), "\n";
+
+		open(my $dest_fh, ">", $dest) || die "[ERROR]: could not write to LICENSE FILE $dest\n";
+		print $dest_fh join("\n", @section);
+		close($dest_fh);
+	} else {
+		print "No 'Copyright & License' section found.\n";
+	}
+
+	
+
+}
+
+sub work {
+	# if not a directory already. . .
+	if ( !-d $lic_dir ) {
+		if(mkdir $lic_dir){
+			print "Directory '$lic_dir' created successfully.\n";
+		} else {
+			die "Failed to create directory '$lic_dir': $!\n";
+		}
+	}
+
+	foreach my $tarfile (@tar_files) {
+		if ( $tarfile =~ m{([^/\\]+)(?=\.tar\.gz$)} ) {
+			my $module = $1;
+
+			print STDERR "Module from tarfile: $module\n";
+			print_distributions();
+			# if tarfile is not in our cpanfile_deps don't get the license.
+			if ( !exists $cpanfile_formatted{$module} ) {
+				next;
+			}
+
+			# check if we've scanned the module already.
+			if ( $cpanfile_formatted{$module} ne "N/A" ) {
+				next;
+			}
+
+			# unpack the tarfile
+			my $ret = unpack_tarfile( $tarfile, "$directory/tmp/" );
+			if ( $ret != 0 ) {
+				print STDERR "[ERROR]:\t Unpacking $tarfile\n";
+				push @errors, "$tarfile was not scanned. . . manual entry required";
+				next;
+			}
+			# Find unpacked directory and setup license Directory
+			my $module_path = $tmp_dir . "/$module";
+			my $dest_dir    = $lic_dir . "/$module";
+
+			opendir( my $dh, $module_path ) or print STDERR "[ERROR]:\t Cannot open directory: $module_path\n $!" and next;
+
+			# Open the directory for writing
+			while ( my $file = readdir($dh) ) {
+				next if $file =~ /^\./;    # Skip . and .. entries
+				next
+				unless $file =~ /^(LICENSE|COPYING|README|META.JSON|META.YML)$/i;
+
+				if ( $file =~ /^META.JSON$/i ) {
+					print STDERR "[INFO]: Found META.JSON ...\n";
+
+					# Read the META.JSON File... find the license type
+					license_search( "$module_path/$file", $module );
+				}
+
+				if ( $file =~ /^(LICENSE|COPYING)$/i ) {
+					print STDERR "[INFO]: Found LICENSE ...\n";
+
+					# Construct full paths for source and destination
+					my $source_file = File::Spec->catfile( $module_path, $file );
+					my $dest_file = File::Spec->catfile( "$dest_dir", "LICENSE");
+
+					# Copy and rename the file
+					if ( !copy( $source_file, $dest_file ) ) {
+						print STDERR
+						"Failed to copy '$source_file' to '$dest_file': $!";
+						push @errors,
+						"Failed to copy '$source_file' to '$dest_file': $!";
+					}
+
+				}
+
+				if ( $file=~ /^(README|README.MD)$/i ) {
+
+					if(mkdir "$dest_dir"){
+						print STDERR "[INFO]: Directory '$lic_dir' created successfully.\n";
+					} else {
+						print STDERR "Failed to create directory '$lic_dir': $!\n";
+					}
+
+					print STDERR "[INFO]: FOUND README.MD!\n";
+					print STDERR "$module_path/$file\n";
+					extract_readme("$module_path/$file", "$dest_dir/LICENSE");
+				}
+				close($dh);
+			}
+		}
+	}
+
+	clean_up(); # clean up tmp folders and contents.
+	open( my $report, ">", "$lic_dir/license-report.txt" );
+	foreach my $key ( sort keys %cpanfile_formatted ) {
+		print $report " - Module: $key\tlicense:\t" . $cpanfile_formatted{$key} . "\n";
+	}
+	close($report);
+
+	# Print out any errors that took place
+	foreach my $err (@errors) {
+		print STDERR "[ERROR]:\t $err\n";
+	}
+
+}
+
 1;
