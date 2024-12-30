@@ -12,7 +12,7 @@ the licenses in the form of './licenses/<module name>-<module version>/LICENSE'
 
 =head1 SYNOPSIS
 
-  $ perl licenseScanner.pl `<cpanfile path>`
+  $ perl LicenseScanner.pl `<cpanfile path>`
 
 =head1 AUTHOR
 

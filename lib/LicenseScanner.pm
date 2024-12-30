@@ -15,7 +15,7 @@ our @EXPORT_OK = qw(scan);
 
 
 ################################ Global - Variables #####################################
-our $VERSION = 1.0;
+our $VERSION = 1.1;
 our $directory = getcwd();
 our $tmp_dir = "$directory/tmp";
 our $lic_dir = "$directory/licenses";

@@ -1,0 +1,6 @@
+lib/LicenseScanner.pm
+LICENSE
+Makefile.PL
+MANIFEST			This list of files
+README.pod
+scripts/LicenseScanner.pl
