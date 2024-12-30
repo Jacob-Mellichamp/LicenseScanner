@@ -12,7 +12,7 @@ the licenses in the form of './licenses/<module name>-<module version>/LICENSE'
 
 =head1 SYNOPSIS
 
-  $ perl licenseScanner.pl -f <cpanfile>
+  $ perl licenseScanner.pl `<cpanfile path>`
 
 =head1 AUTHOR
 
@@ -24,9 +24,9 @@ GNU v3, perl5 license
 
 =head1 INSTALLATION
 
-Using C<cpan>:
+Using C<cpanm>:
 
-    $ cpan LicenseScanner
+    $ cpanm LicenseScanner
 
 Manual install:
 
