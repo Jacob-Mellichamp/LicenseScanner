@@ -39,7 +39,7 @@ Manual install:
 use strict;
 use warnings;
 use lib "../lib/";
-use LicenseScanner qw(initialize_dependency_list print_distributions install_tar_gz work);
+use LicenseScanner qw(scan);
 
 ##################################### Pre - Checks #####################################
 
@@ -52,23 +52,7 @@ if(!$ARGV[0]){
 $cpanfile_path = $ARGV[0];
 print "cpanfile $cpanfile_path\n";
 
-
-################################ Global - Variables #####################################
-
-# Directory where Licenses will be installed
-my $directory = "";
-my @tar_files;    # list of tar file absolute paths.
-
-my $core_cpanfile    = "";
-my $restapi_cpanfile = "";
-my %cpanfile_deps;    # from cpanfile reads
-my %license_results;
-my @errors;
-
 ################################ MAIN ######################################################
 
-initialize_dependency_list($cpanfile_path);
-print_distributions();
-install_tar_gz();
-work();
+scan($cpanfile_path);
 
