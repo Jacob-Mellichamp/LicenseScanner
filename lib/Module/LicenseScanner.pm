@@ -10,7 +10,9 @@ use File::Which;
 use Cwd qw (abs_path getcwd);
 use JSON;
 use Exporter 'import';
-our @EXPORT_OK = qw(scan);
+our @EXPORT_OK = qw(scan 
+    read_cpan_file format_cpanfile_entries
+);
 
 =head1 NAME
 
@@ -18,23 +20,27 @@ Module::LicenseScanner - This Module is used to gather all dependencies found wi
 cpanfile, create a summary of all the distributions listed with their corresponding license. Also, create a directory structure containing all 
 the licenses in the form of './licenses/<module name>-<module version>/LICENSE'
 
-Public Functions: `scan( <cpanfile path> , <verbose_flag>)`
+=head1 Functions
 
-=head2 scan
+=over
 
-`scan( <cpanfile path> , <verbose_flag>)`
+=item scan( <cpanfile path> , <verbose_flag>)
 
-=head3 Description
 Given the Full Path to a cpanfile, extract licensing data from the files listed distribution list. 
 
-=head3 Parameters
+=over
+
+=item <cpanfile path> => STRING
 
 Cpanfile Path: A string representation of the absolute path to a CPANFILE
+
+=item <verbose_flag> => BOOLEAN
 
 Verbose Flag: (Optional) Set the 'verbose_flag' parameter to a 'truthy' value for debug output to be produced in the STDERR of the executing process.
               (Default: 0) , truthy values include (1, "1", '1')
 
-=head3 Examples
+=item Examples
+
 ```perl
 use Module::LicenseScanner qw(scan);
 scan("/home/user/project/cpanfile");             # run the scan function on the following filepath with the verbose_flag set to '0'
@@ -54,10 +60,12 @@ scan("/home/user/project/cpanfile", 1);          # run the scan function on the 
 use Module::LicenseScanner qw(scan);
 scan("C:\\home\\user\\project\\cpanfile", 1);    # run the scan function on the following Windows filepath and output debug messages to STDERR
 ```
+=back
+
 =cut
 ################################ Global - Variables #####################################
 
-our $VERSION = 1.11;
+our $VERSION = 1.12;
 our $directory = getcwd();
 our $tmp_dir = "$directory/tmp";
 our $lic_dir = "$directory/licenses";
@@ -124,11 +132,6 @@ sub read_cpan_file {
 	print STDERR "[INFO]:\t Reading $file_path cpanfile. . . success!\n" if($verbose_flag);
 }
 
-sub initialize_dependency_list {
-	my ($file_path) = @_;
-	read_cpan_file($file_path);
-}
-
 sub unpack_tarfile {
 	my ( $tarfile, $dir ) = @_;
 	print STDERR "[INFO]:\t untar: $tarfile\n" if($verbose_flag);
@@ -184,7 +187,6 @@ sub clean_up {
 		print STDERR "[INFO]: Directory $tmp_dir removed successfully.\n" if($verbose_flag);
 	} else {
 		print STDERR "[ERROR]: Directory $tmp_dir does not exist.\n" if($verbose_flag);
-		push @errors "Directory $tmp_dir does not exist.";
 	}
 }
 
@@ -229,16 +231,6 @@ sub extract_readme {
 
 }
 
-sub check_for_tar {
-	my $command = 'tar';
-
-	if (which($command)) {
-		return 0;
-	} else {
-		push @errors, "[ERROR]:\t Command 'tar', not found in path.\n";
-		return 1;
-	}
-}
 sub search_all {
 	# if not a directory already. . .
 	if ( !-d $lic_dir ) {
@@ -336,12 +328,8 @@ sub scan {
 	if ($debug){
 		$verbose_flag = 1;
 	}
-	my $err = check_for_tar();
-	if($err){
-		print_errors();
-		die 1;
-	}
-	initialize_dependency_list($cpanfile);
+
+	read_cpan_file($cpanfile);
 	print_distributions();
 	install_tar_gz();
 	search_all();
