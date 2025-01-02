@@ -1,37 +1,39 @@
-=head1 NAME
+NAME
+    licenseScan.pl - This file is used to gather all CPAN licenses from
+    third party dependencies.
 
-licenseScan.pl - This file is used to gather all CPAN licenses from third party dependencies.
+DESCRIPTION
+    This file is used to gather all dependencies found within a cpanfile.
+    Given an absolute path to a cpanfile, create a summary of all the
+    distributions listed with their corresponding license. Also, create a
+    directory structure containing all the licenses in the form of
+    './licenses/<module name>-<module version>/LICENSE'
 
-=head1 DESCRIPTION
+PERL CMDLINE EXAMPLE
+    $ perl LicenseScanner.pl `<cpanfile path>`
 
-This file is used to gather all dependencies found within a cpanfile. Given an absolute path to a
-cpanfile, create a summary of all the licenses within the file. Also, a directory structure containing all 
-the licenses in the form of './licenses/<module name>-<module version>/LICENSE'
+PERL MODULE EXAMPLE:
+```perl
+    use Module::LicenseScanner qw(scan);
 
-=head1 SYNOPSIS
+    scan("root/path/to/cpanfile");
 
-  $ perl licenseScanner.pl `<cpanfile path>`
+    ```
 
-=head1 AUTHOR
+AUTHOR
+    Jake Mellichamp
 
-Jake Mellichamp
+LICENSE
+    GNU v3, Perl_5 license
 
-=head1 LICENSE
+INSTALLATION
+    Using "cpanm":
 
-GNU v3, perl5 license
+        $ cpanm LicenseScanner
 
-=head1 INSTALLATION
+    Manual install:
 
-Using C<cpanm>:
-
-    $ cpanm LicenseScanner
-
-Manual install:
-
-    $ perl Makefile.PL
-    $ make
-    $ make install
-
-
-=cut
+        $ perl Makefile.PL
+        $ make
+        $ make install
 

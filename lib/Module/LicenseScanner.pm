@@ -1,4 +1,4 @@
-package LicenseScanner;
+package Module::LicenseScanner;
 
 use strict;
 use warnings;
@@ -12,18 +12,62 @@ use JSON;
 use Exporter 'import';
 our @EXPORT_OK = qw(scan);
 
+=head1 NAME
 
+Module::LicenseScanner - This Module is used to gather all dependencies found within a cpanfile. Given an absolute path to a
+cpanfile, create a summary of all the distributions listed with their corresponding license. Also, create a directory structure containing all 
+the licenses in the form of './licenses/<module name>-<module version>/LICENSE'
 
+Public Functions: `scan( <cpanfile path> , <verbose_flag>)`
+
+=head2 scan
+
+`scan( <cpanfile path> , <verbose_flag>)`
+
+=head3 Description
+Given the Full Path to a cpanfile, extract licensing data from the files listed distribution list. 
+
+=head3 Parameters
+
+Cpanfile Path: A string representation of the absolute path to a CPANFILE
+
+Verbose Flag: (Optional) Set the 'verbose_flag' parameter to a 'truthy' value for debug output to be produced in the STDERR of the executing process.
+              (Default: 0) , truthy values include (1, "1", '1')
+
+=head3 Examples
+```perl
+use Module::LicenseScanner qw(scan);
+scan("/home/user/project/cpanfile");             # run the scan function on the following filepath with the verbose_flag set to '0'
+```
+
+```perl
+use Module::LicenseScanner qw(scan);
+scan("/home/user/project/cpanfile", 1);          # run the scan function on the following filepath and output debug messages to STDERR
+```
+
+```perl
+use Module::LicenseScanner qw(scan);
+scan("/home/user/project/cpanfile", 1);          # run the scan function on the following filepath and output debug messages to STDERR
+```
+
+```perl
+use Module::LicenseScanner qw(scan);
+scan("C:\\home\\user\\project\\cpanfile", 1);    # run the scan function on the following Windows filepath and output debug messages to STDERR
+```
+=cut
 ################################ Global - Variables #####################################
-our $VERSION = 1.1;
+
+our $VERSION = 1.11;
 our $directory = getcwd();
 our $tmp_dir = "$directory/tmp";
 our $lic_dir = "$directory/licenses";
 our @tar_files; # list of tar file absolute paths.
-our %cpanfile_deps;    # from cpanfile reads formatted Test::Harness@0.05
-our %cpanfile_formatted; # formatted Test-Harness-0.05
+our %cpanfile_deps;    # from cpanfile reads formatted (Example: Test::Harness@0.05)
+our %cpanfile_formatted; # formatted (Example: Test-Harness-0.05)
 our %license_results;
+our $verbose_flag = 0;
 my @errors;
+
 ##########################################################################################
 sub install_tar_gz {
 	clean_up();
@@ -36,9 +80,7 @@ sub install_tar_gz {
 	}
 	find( \&find_tar_gz, $tmp_dir );
 }
-# Get all tar.gz files
-# Purpose: This file finds All files that end in .tar.gz within the 'lk_com/cpan/windows' directory.
-# Output: the @tar_files array contains all the absolute paths of tar files.
+
 sub find_tar_gz {
 	if (/\.tar\.gz$/) {    # Match files ending with .tar.gz
 		my $absolute_path = abs_path($File::Find::name);
@@ -51,11 +93,10 @@ sub find_tar_gz {
 	}
 }
 
-# Purpose: A Utility Function that is used to read a cpanfile.
-# output:  each line of the cpanfile is appended to the global '$cpanfile_deps' hash-map and initialized as "N/A"
 sub read_cpan_file {
 	my ( $file_path ) = @_;
-	print STDERR "[INFO]:\t Reading $file_path cpanfile. . .\n";
+
+	print STDERR "[INFO]:\t Reading $file_path cpanfile. . .\n" if($verbose_flag);
 
 	open( my $cpanfile_fh, '<', $file_path )
 	  or die "[ERROR]:\t Could not open $file_path CPANFILE\n$!\n";
@@ -80,21 +121,17 @@ sub read_cpan_file {
 		}
 	}
 	format_cpanfile_entries(); 
-	print STDERR "[INFO]:\t Reading $file_path cpanfile. . . success!\n";
+	print STDERR "[INFO]:\t Reading $file_path cpanfile. . . success!\n" if($verbose_flag);
 }
 
-# Purpose: Helper function to organize the reading of dependencies
-# Output: All necessary cpanfile's have been read and appended to %cpanfile_deps
 sub initialize_dependency_list {
 	my ($file_path) = @_;
 	read_cpan_file($file_path);
 }
 
-# Purpose: Given a tarfile and destination directory.
-#          Untar a file into the destination directory.
 sub unpack_tarfile {
 	my ( $tarfile, $dir ) = @_;
-	print STDERR "[INFO]:\t untar: $tarfile\n";
+	print STDERR "[INFO]:\t untar: $tarfile\n" if($verbose_flag);
 	my $cmd = "tar -xvzf $tarfile -C $dir >nul 2>nul";
 	print STDERR "$cmd\n";
 	return system($cmd);
@@ -109,21 +146,12 @@ sub format_cpanfile_entries {
 	}
 }
 
-# Purpose: Given a META.json CPAN metadata file ... search for what license is used.
-# In almost all perl distributions, there exists a 'license: []' array that contains
-# all the licenses that apply to the distro.
-#
-# Parameter:
-#   - $source_file : META.json absolute_path
-#   - $mod : Name of the module that is currently being searched
-# Output: For the individual Module '$mod', the license is set on our global %cpanfile_deps Variables
-#         or the license is simply not found. This function returns void.
-sub license_search {
+sub search_license {
 	my ( $source_file, $mod ) = @_;
 	my $fh;
 	if ( !open( $fh, '<', $source_file ) ) {
-		print STDERR "[ERROR]:\t Failed to open file '$source_file'\n";
-		push @errors, "Failed to read $source_file\n";
+		print STDERR "[ERROR]:\t Failed to open file '$source_file'\n" if($verbose_flag);
+		push @errors, "Failed to open file $source_file\n";
 		close($fh);
 		return 1;
 	}
@@ -137,7 +165,7 @@ sub license_search {
 		$cpanfile_formatted{$mod} = $lic_result;
 	}
 	else {
-		print STDERR "[ERROR]:\t $mod License key not found or empty\n";
+		print STDERR "[ERROR]:\t $mod License key not found or empty\n" if($verbose_flag);
 		push @errors, "License not found for $mod";
 	}
 }
@@ -153,9 +181,10 @@ sub clean_up {
 	# Check if the directory exists before attempting to remove it
 	if (-d $tmp_dir) {
 		rmtree($tmp_dir, { safe => 0 }) or die "Failed to remove directory $tmp_dir: $!";
-		print STDERR "[INFO]: Directory $tmp_dir removed successfully.\n";
+		print STDERR "[INFO]: Directory $tmp_dir removed successfully.\n" if($verbose_flag);
 	} else {
-		print STDERR "[ERROR]: Directory $tmp_dir does not exist.\n";
+		print STDERR "[ERROR]: Directory $tmp_dir does not exist.\n" if($verbose_flag);
+		push @errors "Directory $tmp_dir does not exist.";
 	}
 }
 
@@ -214,7 +243,7 @@ sub search_all {
 	# if not a directory already. . .
 	if ( !-d $lic_dir ) {
 		if(mkdir $lic_dir){
-			print "Directory '$lic_dir' created successfully.\n";
+			print "Directory '$lic_dir' created successfully.\n" if($verbose_flag);
 		} else {
 			die "Failed to create directory '$lic_dir': $!\n";
 		}
@@ -237,7 +266,7 @@ sub search_all {
 			# unpack the tarfile
 			my $ret = unpack_tarfile( $tarfile, "$directory/tmp/" );
 			if ( $ret != 0 ) {
-				print STDERR "[ERROR]:\t Unpacking $tarfile\n";
+				print STDERR "[ERROR]:\t Unpacking $tarfile\n" if($verbose_flag);
 				push @errors, "$tarfile was not scanned. . . manual entry required";
 				next;
 			}
@@ -255,7 +284,7 @@ sub search_all {
 
 				if ( $file =~ /^META.JSON$/i ) {
 					# Read the META.JSON File... find the license type
-					license_search( "$module_path/$file", $module );
+					search_license( "$module_path/$file", $module );
 				}
 
 				if ( $file =~ /^(LICENSE|COPYING)$/i ) {
@@ -274,7 +303,7 @@ sub search_all {
 				if ( $file=~ /^(README|README.MD)$/i ) {
 
 					if(mkdir "$dest_dir"){
-						print STDERR "[INFO]: Directory '$dest_dir' created successfully.\n";
+						print STDERR "[INFO]: Directory '$dest_dir' created successfully.\n" if($verbose_flag);
 					} else {
 						push @errors, "Failed to create directory '$dest_dir': $!\n";
 					}
@@ -300,8 +329,13 @@ sub print_errors {
 		print STDERR "[ERROR]:\t $err\n";
 	}
 }
+
 sub scan {
-	my ($cpanfile) = @_;
+	my ($cpanfile, $debug) = @_;
+	$debug //= 0;
+	if ($debug){
+		$verbose_flag = 1;
+	}
 	my $err = check_for_tar();
 	if($err){
 		print_errors();

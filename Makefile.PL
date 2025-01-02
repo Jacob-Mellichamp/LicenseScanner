@@ -3,8 +3,8 @@ use ExtUtils::MakeMaker;
 
 WriteMakefile(
   NAME             => 'LicenseScanner',
-  VERSION_FROM     => 'lib/LicenseScanner.pm',
-  ABSTRACT_FROM    => 'lib/LicenseScanner.pm',
+  VERSION_FROM     => 'lib/Module/LicenseScanner.pm',
+  ABSTRACT_FROM    => 'lib/Module/LicenseScanner.pm',
   AUTHOR           => 'Jake Mellichamp',
   LICENSE          => 'perl_5',
   MIN_PERL_VERSION => '5.008004',
