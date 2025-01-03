@@ -92,6 +92,7 @@ scan("/home/user/project/cpanfile", 1);          # run the scan function on the 
 use Module::LicenseScanner qw(scan);
 scan("C:\\home\\user\\project\\cpanfile", 1);    # run the scan function on the following Windows filepath and output debug messages to STDERR
 ```
+
 =back
 
 =head1 AUTHOR

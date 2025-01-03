@@ -65,7 +65,7 @@ scan("C:\\home\\user\\project\\cpanfile", 1);    # run the scan function on the 
 =cut
 ################################ Global - Variables #####################################
 
-our $VERSION = 1.13;
+our $VERSION = 1.14;
 our $directory = getcwd();
 our $tmp_dir = "$directory/tmp";
 our $lic_dir = "$directory/licenses";
